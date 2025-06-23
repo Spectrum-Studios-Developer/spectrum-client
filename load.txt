@@ -1,0 +1,1 @@
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Spectrum-Studios-Developer/spectrum-client/refs/heads/main/v1.lua"))()

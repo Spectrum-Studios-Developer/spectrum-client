@@ -1,1 +1,2 @@
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Spectrum-Studios-Developer/spectrum-client/refs/heads/main/v1.lua"))()
+v1: loadstring(game:HttpGet("https://raw.githubusercontent.com/Spectrum-Studios-Developer/spectrum-client/refs/heads/main/v1.lua"))()
+v2: loadstring(game:HttpGet("https://raw.githubusercontent.com/Spectrum-Studios-Developer/spectrum-client/refs/heads/main/v2.lua"))()

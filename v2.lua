@@ -38,7 +38,7 @@ local titleLabel = createInstance("TextLabel", titleBar, "Title")
 titleLabel.Size = UDim2.new(1, -10, 1, 0)
 titleLabel.Position = UDim2.new(0, 10, 0, 0)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "Spectrum Client v1.0.0"
+titleLabel.Text = "Spectrum Client v2.1.0"
 titleLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 titleLabel.TextScaled = true
 titleLabel.Font = Enum.Font.GothamBold
@@ -277,89 +277,117 @@ local moduleFunctions = {
 		end)
 	end,
 	
-	[6] = function(moduleData)
-		if moduleData.espConnection then
-			moduleData.espConnection:Disconnect()
-			moduleData.espConnection = nil
-		end
-		if moduleData.charAddedConnections then
-			for _, connection in pairs(moduleData.charAddedConnections) do
-				connection:Disconnect()
-			end
-			moduleData.charAddedConnections = nil
-		end
-		if moduleData.espGuiMap then
-			for _, gui in pairs(moduleData.espGuiMap) do
-				if gui and gui.Parent then
-					gui:Destroy()
-				end
-			end
-			moduleData.espGuiMap = nil
-		end
-
-		if not moduleData.enabled then
-			return
-		end
-
-		moduleData.charAddedConnections = {}
-		moduleData.espGuiMap = {}
-
-		local function attachESPToCharacter(targetPlayer, character)
-			if targetPlayer == player then return end 
-			local hrp = character:FindFirstChild("HumanoidRootPart")
-			if not hrp then return end
-
-			local billboard = Instance.new("BillboardGui")
-			billboard.Name = "ESP_GUI"
-			billboard.Adornee = hrp
-			billboard.AlwaysOnTop = true
-			billboard.Size = UDim2.new(4, 0, 6, 0)
-			billboard.StudsOffset = Vector3.new(0, 0, 0)
-			billboard.Parent = hrp
-
-			local box = Instance.new("Frame")
-			box.Size = UDim2.new(1, 0, 1, 0)
-			box.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-			box.BackgroundTransparency = 0.6
-			box.BorderSizePixel = 1
-			box.BorderColor3 = Color3.new(1, 1, 1)
-			box.Parent = billboard
-
-			local nameLabel = Instance.new("TextLabel")
-			nameLabel.Size = UDim2.new(1, 0, 0.2, 0)
-			nameLabel.Position = UDim2.new(0, 0, -0.2, 0)
-			nameLabel.BackgroundTransparency = 1
-			nameLabel.Text = targetPlayer.Name
-			nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-			nameLabel.TextStrokeTransparency = 0.5
-			nameLabel.TextScaled = true
-			nameLabel.Font = Enum.Font.SourceSansBold
-			nameLabel.Parent = billboard
-
-			moduleData.espGuiMap[targetPlayer] = billboard
-		end
-
-		for _, targetPlayer in ipairs(game.Players:GetPlayers()) do
-			if targetPlayer.Character then
-				attachESPToCharacter(targetPlayer, targetPlayer.Character)
-			end
-			moduleData.charAddedConnections[targetPlayer] = targetPlayer.CharacterAdded:Connect(function(char)
-				task.wait(1) 
-				attachESPToCharacter(targetPlayer, char)
-			end)
-		end
-
-		moduleData.espConnection = game.Players.PlayerAdded:Connect(function(targetPlayer)
-			if targetPlayer.Character then
-				attachESPToCharacter(targetPlayer, targetPlayer.Character)
-			end
-			moduleData.charAddedConnections[targetPlayer] = targetPlayer.CharacterAdded:Connect(function(char)
-				task.wait(1)
-				attachESPToCharacter(targetPlayer, char)
-			end)
-		end)
-	end,
-}
+[6] = function(moduleData)
+    if moduleData.espConnection then
+        moduleData.espConnection:Disconnect()
+        moduleData.espConnection = nil
+    end
+    if moduleData.charAddedConnections then
+        for _, connection in pairs(moduleData.charAddedConnections) do
+            connection:Disconnect()
+        end
+        moduleData.charAddedConnections = nil
+    end
+    if moduleData.renderConnection then
+        moduleData.renderConnection:Disconnect()
+        moduleData.renderConnection = nil
+    end
+    if moduleData.espScreenGui then
+        moduleData.espScreenGui:Destroy()
+        moduleData.espScreenGui = nil
+    end
+    if moduleData.espFrameMap then
+        moduleData.espFrameMap = nil
+    end
+    
+    if not moduleData.enabled then return end
+    
+    moduleData.charAddedConnections = {}
+    moduleData.espFrameMap = {}
+    
+    local camera = workspace.CurrentCamera
+    local playerGui = player.PlayerGui
+    
+    moduleData.espScreenGui = Instance.new("ScreenGui")
+    moduleData.espScreenGui.Name = "ESP_Main"
+    moduleData.espScreenGui.Parent = playerGui
+    
+    local function createESPFrame(targetPlayer)
+        local box = Instance.new("Frame")
+        box.Size = UDim2.new(0, 100, 0, 150)
+        box.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+        box.BackgroundTransparency = 0.6
+        box.BorderSizePixel = 1
+        box.BorderColor3 = Color3.new(1, 1, 1)
+        box.Visible = false
+        box.Parent = moduleData.espScreenGui
+        
+        local nameLabel = Instance.new("TextLabel")
+        nameLabel.Size = UDim2.new(1, 0, 0.2, 0)
+        nameLabel.Position = UDim2.new(0, 0, -0.2, 0)
+        nameLabel.BackgroundTransparency = 1
+        nameLabel.Text = targetPlayer.Name
+        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        nameLabel.TextStrokeTransparency = 0.5
+        nameLabel.TextScaled = true
+        nameLabel.Font = Enum.Font.SourceSansBold
+        nameLabel.Parent = box
+        
+        return box
+    end
+    
+    local function updateESPPositions()
+        if not moduleData.enabled then
+            if moduleData.espScreenGui then
+                moduleData.espScreenGui:Destroy()
+                moduleData.espScreenGui = nil
+            end
+            return
+        end
+        
+        for targetPlayer, box in pairs(moduleData.espFrameMap) do
+            if targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                local hrp = targetPlayer.Character.HumanoidRootPart
+                local screenPos, onScreen = camera:WorldToScreenPoint(hrp.Position)
+                
+                if onScreen then
+                    local distance = (hrp.Position - camera.CFrame.Position).Magnitude
+                    local size = math.max(50, 200 / distance)
+                    
+                    box.Size = UDim2.new(0, size, 0, size * 1.5)
+                    box.Position = UDim2.new(0, screenPos.X - size/2, 0, screenPos.Y - size * 0.75)
+                    box.Visible = true
+                else
+                    box.Visible = false
+                end
+            else
+                box.Visible = false
+            end
+        end
+    end
+    
+    local function addESPToPlayer(targetPlayer)
+        if targetPlayer == player then return end
+        
+        local box = createESPFrame(targetPlayer)
+        moduleData.espFrameMap[targetPlayer] = box
+        
+        moduleData.charAddedConnections[targetPlayer] = targetPlayer.CharacterAdded:Connect(function(char)
+            task.wait(1)
+        end)
+    end
+    
+    for _, targetPlayer in ipairs(game.Players:GetPlayers()) do
+        addESPToPlayer(targetPlayer)
+    end
+    
+    moduleData.espConnection = game.Players.PlayerAdded:Connect(function(targetPlayer)
+        addESPToPlayer(targetPlayer)
+    end)
+    
+    moduleData.renderConnection = game:GetService("RunService").Heartbeat:Connect(updateESPPositions)
+    end,
+    }
 
 local selectedModule = nil
 local moduleButtons = {}

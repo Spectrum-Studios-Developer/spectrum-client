@@ -38,7 +38,7 @@ local titleLabel = createInstance("TextLabel", titleBar, "Title")
 titleLabel.Size = UDim2.new(1, -10, 1, 0)
 titleLabel.Position = UDim2.new(0, 10, 0, 0)
 titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "Spectrum Client v2.1.0"
+titleLabel.Text = "Spectrum Client v1.1.0"
 titleLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
 titleLabel.TextScaled = true
 titleLabel.Font = Enum.Font.GothamBold
@@ -100,7 +100,7 @@ local modules = {
 	{name = "Fly", enabled = false, sliderValue = 16, sliderMin = 10, sliderMax = 75},
 	{name = "No Clip", enabled = false, sliderValue = 2, sliderMin = 0, sliderMax = 10},
 	{name = "Anti Bot", enabled = false, sliderValue = 26, sliderMin = 1, sliderMax = 50},
-	{name = "ESP", enabled = false}
+	{name = "Inf Health", enabled = false}
 }
 
 local moduleFunctions = {
@@ -277,117 +277,46 @@ local moduleFunctions = {
 		end)
 	end,
 	
-[6] = function(moduleData)
-    if moduleData.espConnection then
-        moduleData.espConnection:Disconnect()
-        moduleData.espConnection = nil
-    end
-    if moduleData.charAddedConnections then
-        for _, connection in pairs(moduleData.charAddedConnections) do
-            connection:Disconnect()
+    [6] = function(moduleData)
+        if moduleData.healthConnection then
+            moduleData.healthConnection:Disconnect()
+            moduleData.healthConnection = nil
         end
-        moduleData.charAddedConnections = nil
-    end
-    if moduleData.renderConnection then
-        moduleData.renderConnection:Disconnect()
-        moduleData.renderConnection = nil
-    end
-    if moduleData.espScreenGui then
-        moduleData.espScreenGui:Destroy()
-        moduleData.espScreenGui = nil
-    end
-    if moduleData.espFrameMap then
-        moduleData.espFrameMap = nil
-    end
-    
-    if not moduleData.enabled then return end
-    
-    moduleData.charAddedConnections = {}
-    moduleData.espFrameMap = {}
-    
-    local camera = workspace.CurrentCamera
-    local playerGui = player.PlayerGui
-    
-    moduleData.espScreenGui = Instance.new("ScreenGui")
-    moduleData.espScreenGui.Name = "ESP_Main"
-    moduleData.espScreenGui.Parent = playerGui
-    
-    local function createESPFrame(targetPlayer)
-        local box = Instance.new("Frame")
-        box.Size = UDim2.new(0, 100, 0, 150)
-        box.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        box.BackgroundTransparency = 0.6
-        box.BorderSizePixel = 1
-        box.BorderColor3 = Color3.new(1, 1, 1)
-        box.Visible = false
-        box.Parent = moduleData.espScreenGui
-        
-        local nameLabel = Instance.new("TextLabel")
-        nameLabel.Size = UDim2.new(1, 0, 0.2, 0)
-        nameLabel.Position = UDim2.new(0, 0, -0.2, 0)
-        nameLabel.BackgroundTransparency = 1
-        nameLabel.Text = targetPlayer.Name
-        nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        nameLabel.TextStrokeTransparency = 0.5
-        nameLabel.TextScaled = true
-        nameLabel.Font = Enum.Font.SourceSansBold
-        nameLabel.Parent = box
-        
-        return box
-    end
-    
-    local function updateESPPositions()
-        if not moduleData.enabled then
-            if moduleData.espScreenGui then
-                moduleData.espScreenGui:Destroy()
-                moduleData.espScreenGui = nil
-            end
-            return
+        if moduleData.charAddedConnection then
+            moduleData.charAddedConnection:Disconnect()
+            moduleData.charAddedConnection = nil
         end
         
-        for targetPlayer, box in pairs(moduleData.espFrameMap) do
-            if targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                local hrp = targetPlayer.Character.HumanoidRootPart
-                local screenPos, onScreen = camera:WorldToScreenPoint(hrp.Position)
-                
-                if onScreen then
-                    local distance = (hrp.Position - camera.CFrame.Position).Magnitude
-                    local size = math.max(50, 200 / distance)
-                    
-                    box.Size = UDim2.new(0, size, 0, size * 1.5)
-                    box.Position = UDim2.new(0, screenPos.X - size/2, 0, screenPos.Y - size * 0.75)
-                    box.Visible = true
-                else
-                    box.Visible = false
+        if not moduleData.enabled then return end
+        
+        local function setMaxHealth()
+            local character = player.Character
+            if character then
+                local humanoid = character:FindFirstChild("Humanoid")
+                if humanoid then
+                    humanoid.Health = humanoid.MaxHealth
                 end
-            else
-                box.Visible = false
             end
         end
-    end
-    
-    local function addESPToPlayer(targetPlayer)
-        if targetPlayer == player then return end
         
-        local box = createESPFrame(targetPlayer)
-        moduleData.espFrameMap[targetPlayer] = box
+        local function connectToCharacter(character)
+            local humanoid = character:WaitForChild("Humanoid")
+            setMaxHealth()
+            
+            moduleData.healthConnection = humanoid.HealthChanged:Connect(function()
+                if moduleData.enabled then
+                    humanoid.Health = humanoid.MaxHealth
+                end
+            end)
+        end
         
-        moduleData.charAddedConnections[targetPlayer] = targetPlayer.CharacterAdded:Connect(function(char)
-            task.wait(1)
-        end)
-    end
-    
-    for _, targetPlayer in ipairs(game.Players:GetPlayers()) do
-        addESPToPlayer(targetPlayer)
-    end
-    
-    moduleData.espConnection = game.Players.PlayerAdded:Connect(function(targetPlayer)
-        addESPToPlayer(targetPlayer)
-    end)
-    
-    moduleData.renderConnection = game:GetService("RunService").Heartbeat:Connect(updateESPPositions)
+        if player.Character then
+            connectToCharacter(player.Character)
+        end
+        
+        moduleData.charAddedConnection = player.CharacterAdded:Connect(connectToCharacter)
     end,
-    }
+}
 
 local selectedModule = nil
 local moduleButtons = {}

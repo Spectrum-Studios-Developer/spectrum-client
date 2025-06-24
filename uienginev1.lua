@@ -19,7 +19,6 @@ function UILibrary:CreateUI(player, modules, moduleFunctions)
 	local dragStart = nil
 	local startPos = nil
 
-	-- Create main GUI
 	local mainGui = createInstance("ScreenGui", player.PlayerGui, "SpectrumClient")
 	gui.mainGui = mainGui
 
@@ -38,7 +37,6 @@ function UILibrary:CreateUI(player, modules, moduleFunctions)
 	mainFrame.BorderSizePixel = 0
 	createInstance("UICorner", mainFrame, "Corner").CornerRadius = UDim.new(0, 10)
 
-	-- Title bar
 	local titleBar = createInstance("Frame", mainFrame, "TitleBar")
 	titleBar.Size = UDim2.new(1, 0, 0, 35)
 	titleBar.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
@@ -56,7 +54,7 @@ function UILibrary:CreateUI(player, modules, moduleFunctions)
 	titleLabel.Size = UDim2.new(1, -120, 1, 0)
 	titleLabel.Position = UDim2.new(0, 15, 0, 0)
 	titleLabel.BackgroundTransparency = 1
-	titleLabel.Text = "Spectrum Client v1.2.0"
+	titleLabel.Text = "Spectrum Client v2.2.0"
 	titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 	titleLabel.TextScaled = true
 	titleLabel.Font = Enum.Font.GothamBold
@@ -280,13 +278,13 @@ function UILibrary:CreateUI(player, modules, moduleFunctions)
 	end
 
 	function gui.showSettings(moduleData, index)
-		settingsTitle.Text = moduleData.name
+		settingsTitle.Text = moduleData.name or "Unknown Module"
 		modeFrame.Visible = true
-		modeDropdown.Text = moduleData.currentMode .. " ▼"
+		modeDropdown.Text = (moduleData.currentMode or "Default") .. " ▼" 
 		updateModeDropdown(moduleData)
-
+		
 		for _, child in pairs(settingsFrame:GetChildren()) do
-			if child:IsA("Frame") then child:Destroy() end
+		    if child:IsA("Frame") then child:Destroy() end
 		end
 
 		local currentSettings = moduleData.modes[moduleData.currentMode]
